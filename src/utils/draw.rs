@@ -8,14 +8,6 @@ pub fn hexcolor(code: u32) -> Color {
     Color::from_rgba(r, g, b, a)
 }
 
-pub fn mouse_position_pixel() -> (f32, f32) {
-    let (mx, my) = mouse_position();
-    let (wd, hd) = width_height_deficit();
-    let mx = (mx - wd / 2.0) / ((screen_width() - wd) / WIDTH);
-    let my = (my - hd / 2.0) / ((screen_height() - hd) / HEIGHT);
-    (mx, my)
-}
-
 pub fn width_height_deficit() -> (f32, f32) {
     if (screen_width() / screen_height()) > ASPECT_RATIO {
         // it's too wide! put bars on the sides!
@@ -31,20 +23,16 @@ pub fn width_height_deficit() -> (f32, f32) {
 }
 
 /// Draw a 9patch of a 3x3 grid of tiles.
-pub fn patch9(
-    tile_size: f32,
-    corner_x: f32,
-    corner_y: f32,
-    width: usize,
-    height: usize,
-    tex: Texture2D,
-) {
+pub fn patch9(corner_x: f32, corner_y: f32, width: usize, height: usize, tex: Texture2D) {
+    let tile_width = tex.width() / 3.0;
+    let tile_height = tex.height() / 3.0;
+
     for x in 0..width {
         for y in 0..height {
-            let px = corner_x + x as f32 * tile_size;
-            let py = corner_y + y as f32 * tile_size;
+            let px = corner_x + x as f32 * tile_width;
+            let py = corner_y + y as f32 * tile_height;
 
-            let sx = tile_size
+            let sx = tile_width
                 * if x == 0 {
                     0.0
                 } else if x == width - 1 {
@@ -52,7 +40,7 @@ pub fn patch9(
                 } else {
                     1.0
                 };
-            let sy = tile_size
+            let sy = tile_height
                 * if y == 0 {
                     0.0
                 } else if y == height - 1 {

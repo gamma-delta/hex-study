@@ -1,6 +1,6 @@
 use crate::{
     assets::Assets,
-    boilerplates::{FrameInfo, Gamemode, GamemodeDrawer, Transition},
+    boilerplates::{FrameInfo, Gamemode, Transition},
     controls::{Control, InputSubscriber},
     utils::draw::{self, hexcolor},
     HEIGHT, WIDTH,
@@ -13,12 +13,11 @@ use rand::Rng;
 
 use std::f32::consts::TAU;
 
-use super::ModeExample;
+use super::ModeOverworld;
 
 const BANNER_DISPLAY_SIZE: f32 = WIDTH * 0.6;
 const BANNER_START_TIME: f64 = 0.25;
 
-#[derive(Clone)]
 pub struct ModeLogo {
     start_time: f64,
     first_frame: bool,
@@ -98,20 +97,13 @@ impl Gamemode for ModeLogo {
             macroquad::audio::stop_sound(assets.sounds.title_jingle);
 
             // Put your next state here!
-            Transition::Swap(Box::new(ModeExample::new(assets)))
+            Transition::Swap(Box::new(ModeOverworld::init()))
         } else {
             Transition::None
         }
     }
 
-    fn get_draw_info(&mut self) -> Box<dyn GamemodeDrawer> {
-        // I am my own drawer
-        Box::new(self.clone())
-    }
-}
-
-impl GamemodeDrawer for ModeLogo {
-    fn draw(&self, assets: &Assets, _frame_info: FrameInfo) {
+    fn draw(&self, assets: &Assets, _frame_info: FrameInfo, _controls: &InputSubscriber) {
         use macroquad::prelude::*;
 
         let background = draw::hexcolor(0x21181bff);

@@ -12,17 +12,11 @@ pub trait Gamemode {
         assets: &Assets,
     ) -> Transition;
 
-    /// Gather information about how to draw this state.
-    fn get_draw_info(&mut self) -> Box<dyn GamemodeDrawer>;
+    fn draw(&self, assets: &Assets, frame_info: FrameInfo, controls: &InputSubscriber);
 
     /// When a `Transition` finishes and things are popped off to reveal this gamemode,
     /// this function is called.
     fn on_resume(&mut self, assets: &Assets) {}
-}
-
-/// Data on how to draw a state
-pub trait GamemodeDrawer: Send {
-    fn draw(&self, assets: &Assets, frame_info: FrameInfo);
 }
 
 /// Information about a frame.

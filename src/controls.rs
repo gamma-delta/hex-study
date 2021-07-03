@@ -1,19 +1,29 @@
-use cogs_gamedev::controls::EventInputHandler;
+use cogs_gamedev::controls::{EventInputHandler, InputHandler};
 use enum_map::Enum;
 use macroquad::{
     miniquad::{self, Context, KeyMods},
     prelude::{
+        mouse_position, screen_height, screen_width,
         utils::{register_input_subscriber, repeat_all_miniquad_input},
-        KeyCode, MouseButton,
+        vec2, DVec2, KeyCode, MouseButton, Vec2,
     },
 };
 
 use std::collections::HashMap;
 
+use crate::{utils::draw::width_height_deficit, HEIGHT, WIDTH};
+
 /// The controls
 #[derive(Enum, Copy, Clone)]
 pub enum Control {
     Click,
+    Up,
+    Down,
+    Left,
+    Right,
+
+    Submit,
+    Debug,
 }
 
 /// Combo keycode and mouse button code
@@ -42,11 +52,22 @@ impl InputSubscriber {
     }
 
     pub fn default_controls() -> HashMap<InputCode, Control> {
-        let mut controls = HashMap::new();
+        use KeyCode::*;
 
-        // Put your controls here
+        let mut controls = HashMap::new();
         controls.insert(InputCode::Mouse(MouseButton::Left), Control::Click);
-        controls.insert(InputCode::Key(KeyCode::Enter), Control::Click);
+
+        for (key, ctrl) in [
+            (W, Control::Up),
+            (A, Control::Left),
+            (S, Control::Down),
+            (D, Control::Right),
+            //
+            (Enter, Control::Submit),
+            (Backslash, Control::Debug),
+        ] {
+            controls.insert(InputCode::Key(key), ctrl);
+        }
 
         controls
     }
@@ -54,6 +75,38 @@ impl InputSubscriber {
     pub fn update(&mut self) {
         repeat_all_miniquad_input(self, self.subscriber_id);
         self.controls.update();
+    }
+
+    /// Normalized vector indicating the direction the player is inputting
+    pub fn pressed_vec(&self) -> Vec2 {
+        let mut out = Vec2::ZERO;
+
+        if self.pressed(Control::Up) {
+            out.y -= 1.0;
+        }
+        if self.pressed(Control::Down) {
+            out.y += 1.0;
+        }
+        if self.pressed(Control::Left) {
+            out.x -= 1.0;
+        }
+        if self.pressed(Control::Right) {
+            out.x += 1.0;
+        }
+
+        out.normalize_or_zero()
+    }
+
+    /// Returns where the mouse is in pixel coordinates.
+    ///
+    /// Although this can totally be gotten without the input handler,
+    /// it just feels wrong to have it be a free-floating function...
+    pub fn mouse_pos(&self) -> Vec2 {
+        let (mx, my) = mouse_position();
+        let (wd, hd) = width_height_deficit();
+        let mx = (mx - wd / 2.0) / ((screen_width() - wd) / WIDTH);
+        let my = (my - hd / 2.0) / ((screen_height() - hd) / HEIGHT);
+        vec2(mx, my)
     }
 }
 

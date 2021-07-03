@@ -29,8 +29,6 @@ pub struct Billboard {
 
     /// The patch9 texture used to draw this
     pub patch9: Texture2D,
-    /// The size of the patch9 tile
-    pub tile_size: f32,
     /// The width in tiles of the billboard display
     pub width: usize,
     /// The height in tiles of the billboard display
@@ -43,7 +41,6 @@ impl Billboard {
         pos: Vec2,
         offset: Vec2,
         patch9: Texture2D,
-        tile_size: f32,
         width: usize,
         height: usize,
     ) -> Self {
@@ -52,7 +49,6 @@ impl Billboard {
             pos,
             offset,
             patch9,
-            tile_size,
             width,
             height,
         }
@@ -125,14 +121,7 @@ impl Billboard {
     pub fn draw(&self) {
         use macroquad::prelude::*;
 
-        draw::patch9(
-            self.tile_size,
-            self.pos.x,
-            self.pos.y,
-            self.width,
-            self.height,
-            self.patch9,
-        );
+        draw::patch9(self.pos.x, self.pos.y, self.width, self.height, self.patch9);
 
         for entry in self.draw_iter() {
             draw_texture_ex(
