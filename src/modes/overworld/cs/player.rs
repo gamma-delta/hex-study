@@ -16,9 +16,13 @@ use crate::{
     modes::overworld::{
         cs::{explosions::Explosion, physics::HasRigidBody},
         physics::PhysicsWorld,
-        spells::casting::{CastResult, SpellCaster},
+        spells::{
+            casting::{CastResult, PatternDrawState, SpellCaster},
+            patterns::{RawPattern, HEX_WIDTH},
+        },
         WorldExt,
     },
+    HEIGHT, WIDTH,
 };
 
 use super::dazing::Dazeable;
@@ -78,6 +82,7 @@ pub fn system_player_inputs(
             CastResult::NotDone => {}
             CastResult::Success(spell) => {
                 info!("Cast a spell! {:#?}", spell);
+                spell.add(world, physics);
             }
             CastResult::Mistake => {
                 // Make a big explosion a little bit offset from you so you go flying
@@ -118,6 +123,48 @@ pub fn system_player_inputs(
         input_vec * consts::WALK_IMPULSE * daze_control_allowed,
         true,
     );
+}
+
+pub fn system_draw_spellcaster(world: &World, controls: &InputSubscriber) {
+    use macroquad::prelude::*;
+
+    let player_h = world.get_player();
+    let player = world.get::<Player>(player_h).unwrap();
+
+    if let Some(board) = &player.wip_spell {
+        // gray out
+        draw_rectangle(0.0, 0.0, WIDTH, HEIGHT, Color::new(0.0, 0.0, 0.0, 0.1));
+
+        // Draw the row of finished hexes above
+        let finished_x = WIDTH / 18.0;
+        let finished_y = HEIGHT / 4.0;
+        let space = WIDTH / 12.0;
+        for (idx, finished) in board.patterns().iter().enumerate() {
+            let x = idx as f32 * space + finished_x;
+            RawPattern::draw(
+                Some(finished),
+                vec2(x, finished_y),
+                None,
+                WIDTH / 60.0,
+                1.0,
+                false,
+            );
+        }
+        if let PatternDrawState::Drawing {
+            wip_pattern,
+            mouse_origin,
+        } = board.state()
+        {
+            RawPattern::draw(
+                wip_pattern.as_ref().map(|(w, _)| w),
+                vec2(WIDTH / 2.0, HEIGHT / 2.0 + HEIGHT / 12.0),
+                Some((*mouse_origin, controls.mouse_pos())),
+                HEX_WIDTH,
+                2.0,
+                true,
+            );
+        }
+    }
 }
 
 /// Player body and collider settings.

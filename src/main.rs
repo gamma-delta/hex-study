@@ -21,8 +21,8 @@ use crate::{
 
 use macroquad::prelude::*;
 
-const WIDTH: f32 = 640.0;
-const HEIGHT: f32 = 480.0;
+const WIDTH: f32 = 320.0;
+const HEIGHT: f32 = 240.0;
 const ASPECT_RATIO: f32 = WIDTH / HEIGHT;
 
 const UPDATES_PER_DRAW: u64 = 1;
@@ -79,8 +79,8 @@ async fn main() {
         // and having it fill everything.
         set_camera(&Camera2D {
             render_target: Some(canvas),
-            zoom: vec2((WIDTH as f32).recip() * 2.0, (HEIGHT as f32).recip() * 2.0),
-            target: vec2(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
+            zoom: vec2(2.0 / WIDTH, 2.0 / HEIGHT),
+            target: vec2(WIDTH / 2.0, HEIGHT / 2.0),
             ..Default::default()
         });
         clear_background(WHITE);
@@ -111,6 +111,10 @@ async fn main() {
         );
 
         frame_info.frames_ran += 1;
+        // Make particles unbad, thanks Vaalha?
+        unsafe {
+            miniquad::gl::glFinish();
+        }
         next_frame().await
     }
 }

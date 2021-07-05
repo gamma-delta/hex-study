@@ -90,7 +90,7 @@ pub fn system_explosions(world: &mut World, physics: &mut PhysicsWorld) {
         initial_direction_spread: TAU,
         initial_velocity_randomness: 3.0,
         linear_accel: -1.0,
-        size: 2.0,
+        size: 3.0 / 16.0,
         size_randomness: 2.0,
         gravity: vec2(0.0, 0.5),
         ..Default::default()
@@ -110,10 +110,10 @@ pub fn system_explosions(world: &mut World, physics: &mut PhysicsWorld) {
 
         let config = EmitterConfig {
             emission_shape: EmissionShape::Sphere {
-                radius: explosion.strength.sqrt(),
+                radius: explosion.strength.sqrt() / 16.0,
             },
             amount: explosion.strength.sqrt() as u32,
-            initial_velocity: explosion.strength.sqrt() * 10.0,
+            initial_velocity: explosion.strength.sqrt(),
             colors_curve: ColorCurve {
                 start: color,
                 mid,

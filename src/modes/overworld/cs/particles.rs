@@ -30,9 +30,14 @@ impl ParticleEmitter {
             disposable,
         }
     }
+
+    pub fn get_config_mut(&mut self) -> &mut EmitterConfig {
+        let e = self.emitter.get_mut().unwrap();
+        &mut e.config
+    }
 }
 
-pub fn system_draw_particles(world: &World, physics: &PhysicsWorld, cam: &Similarity2<f32>) {
+pub fn system_draw_particles(world: &World, physics: &PhysicsWorld) {
     for (e, (emitter, coll_handle)) in world
         .query::<(&ParticleEmitter, &HasCollider)>()
         .into_iter()
@@ -40,11 +45,7 @@ pub fn system_draw_particles(world: &World, physics: &PhysicsWorld, cam: &Simila
         {
             let coll = physics.colliders.get(coll_handle.0).unwrap();
             let center = coll.compute_aabb().center();
-            emitter
-                .emitter
-                .write()
-                .unwrap()
-                .draw((cam.transform_point(&center)).into());
+            emitter.emitter.write().unwrap().draw(center.into());
         }
     }
 }

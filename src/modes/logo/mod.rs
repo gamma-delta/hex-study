@@ -7,7 +7,7 @@ use crate::{
 };
 
 use cogs_gamedev::{chance::WeightedPicker, controls::InputHandler};
-use macroquad::prelude::Color;
+use macroquad::prelude::{Color, RenderTarget};
 use quad_rand::compat::QuadRand;
 use rand::Rng;
 

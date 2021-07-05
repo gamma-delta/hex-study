@@ -135,7 +135,10 @@ impl SpellCaster {
         world: &World,
         physics: &PhysicsWorld,
     ) -> CastResult {
-        let data = pattern.to_data();
+        // Clone the pattern to put it in the display
+        self.patterns.push(pattern.clone());
+
+        let data = pattern.into_data();
         match data {
             SpellData::Junk(_) => {
                 return CastResult::Mistake;

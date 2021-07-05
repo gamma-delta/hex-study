@@ -1,5 +1,6 @@
 mod cs;
 mod physics;
+mod procgen;
 mod spells;
 
 use crate::{
@@ -8,9 +9,11 @@ use crate::{
     controls::InputSubscriber,
     modes::overworld::{
         cs::{
+            debug::system_draw_collision,
             particles::system_draw_particles,
             physics::{system_run_physics, HasCollider, HasRigidBody},
-            player::{player_body_collider, system_player_inputs, Player},
+            player::{player_body_collider, system_draw_spellcaster, system_player_inputs, Player},
+            projectiles::system_draw_projectiles,
         },
         physics::PhysicsWorld,
         spells::{
@@ -22,13 +25,16 @@ use crate::{
 };
 
 use hecs::{ComponentError, Entity, NoSuchEntity, World};
+use macroquad::prelude::RenderTarget;
 use nalgebra::{Matrix3, Similarity2, Vector2};
 use rapier2d::prelude::*;
 
 use self::cs::{
     dazing::{system_dazed, Dazeable},
     explosions::system_explosions,
+    limited_time_offer::system_limited_timers,
     particles::system_cleanup_particles,
+    projectiles::system_projectiles,
 };
 
 /// Mode for the main playing state with the player running around dungeons.
@@ -102,7 +108,10 @@ impl Gamemode for ModeOverworld {
         system_dazed(&mut self.world, &mut self.physics);
 
         system_run_physics(&mut self.world, &mut self.physics);
+
         system_cleanup_particles(&mut self.world, &mut self.physics);
+        system_projectiles(&mut self.world, &mut self.physics);
+        system_limited_timers(&mut self.world, &mut self.physics);
 
         Transition::None
     }
@@ -113,87 +122,31 @@ impl Gamemode for ModeOverworld {
         clear_background(BLACK);
 
         let player_id = self.world.get_player();
-        let player = self.world.get::<Player>(player_id).unwrap();
-
         let handle = self.world.get::<HasCollider>(player_id).unwrap().0;
         let collider = self.physics.colliders.get(handle).unwrap();
         // `pos` is the center of the shape. how convenient.
         let camera_pos = collider.compute_aabb().center();
 
-        let camera = Similarity2::new(
-            // negate the translation so it centers on the player (?)
-            -(camera_pos * 16.0 - vector![WIDTH / 2.0, HEIGHT / 2.0]).coords,
-            0.0,
-            // 16 pixels = 1 square
-            16.0,
-        );
+        let canvas = render_target(WIDTH as u32, HEIGHT as u32);
+        canvas.texture.set_filter(FilterMode::Nearest);
 
-        system_draw_particles(&self.world, &self.physics, &camera);
+        push_camera_state();
+        set_camera(&Camera2D {
+            render_target: Some(canvas),
+            target: (camera_pos).into(),
+            zoom: vec2(2.0 / WIDTH, 2.0 / HEIGHT) * 16.0,
+            ..Default::default()
+        });
+
+        system_draw_projectiles(&self.world, &self.physics);
+        system_draw_particles(&self.world, &self.physics);
 
         // just do some debug drawing for now
-        for (e, (HasCollider(coll_handle), rb_handle)) in
-            self.world.query::<(&_, Option<&HasRigidBody>)>().iter()
-        {
-            let coll = self.physics.colliders.get(*coll_handle).unwrap();
-            let aabb = coll.compute_aabb();
-            let mins = camera * aabb.mins;
-            let maxes = camera * aabb.maxs;
-            let size = maxes - mins;
+        system_draw_collision(&self.world, &self.physics);
 
-            // Always draw a gray background for the collider
-            draw_rectangle(
-                mins.x,
-                mins.y,
-                size.x,
-                size.y,
-                Color::new(0.5, 0.5, 0.5, 0.5),
-            );
-
-            let outline = if rb_handle.is_none() {
-                BLANK
-            } else if e == player_id {
-                ORANGE
-            } else {
-                WHITE
-            };
-
-            draw_rectangle_lines(mins.x, mins.y, size.x, size.y, 2.0, outline);
-        }
-
-        if let Some(board) = &player.wip_spell {
-            // gray out
-            draw_rectangle(0.0, 0.0, WIDTH, HEIGHT, Color::new(0.0, 0.0, 0.0, 0.1));
-
-            // Draw the row of finished hexes above
-            let finished_x = WIDTH / 18.0;
-            let finished_y = HEIGHT / 4.0;
-            let space = WIDTH / 12.0;
-            for (idx, finished) in board.patterns().iter().enumerate() {
-                let x = idx as f32 * space + finished_x;
-                RawPattern::draw(
-                    Some(finished),
-                    vec2(x, finished_y),
-                    None,
-                    WIDTH / 60.0,
-                    1.0,
-                    false,
-                );
-            }
-            if let PatternDrawState::Drawing {
-                wip_pattern,
-                mouse_origin,
-            } = board.state()
-            {
-                RawPattern::draw(
-                    wip_pattern.as_ref().map(|(w, _)| w),
-                    vec2(WIDTH / 2.0, HEIGHT / 2.0 + HEIGHT / 12.0),
-                    Some((*mouse_origin, controls.mouse_pos())),
-                    HEX_WIDTH,
-                    2.0,
-                    true,
-                );
-            }
-        }
+        pop_camera_state();
+        draw_texture(canvas.texture, 0.0, 0.0, WHITE);
+        system_draw_spellcaster(&self.world, controls);
     }
 }
 

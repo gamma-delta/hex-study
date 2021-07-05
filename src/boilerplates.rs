@@ -1,3 +1,5 @@
+use macroquad::prelude::RenderTarget;
+
 use crate::{assets::Assets, controls::InputSubscriber};
 
 /// Things the engine can update and draw

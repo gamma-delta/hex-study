@@ -1,4 +1,5 @@
 pub mod casting;
+pub mod componentinators;
 pub mod data;
 pub mod patterns;
 

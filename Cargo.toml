@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-macroquad = "0.3.4"
+macroquad = "0.3.6"
 cogs-gamedev = "*"
 quad-wasmnastics = "*"
 
@@ -34,6 +34,8 @@ ahash = "0.7.4"
 smallset = "0.1.1"
 paste = "1.0.5"
 macroquad-particles = "0.1.1"
+rand_distr = "0.4.1"
+rand_xoshiro = "0.6.0"
 
 [features]
 default = ["thread_loop"]
@@ -42,3 +44,8 @@ thread_loop = ["crossbeam"]
 
 [profile.dev.package.'*']
 opt-level = 3
+
+
+[patch.crates-io]
+# Make particles stop flickering back into existence
+miniquad = { git = "https://github.com/vaalha/miniquad" }

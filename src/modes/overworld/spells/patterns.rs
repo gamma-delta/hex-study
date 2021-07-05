@@ -11,7 +11,7 @@ use super::data::SpellData;
 
 /// Pixel distance across a board hexagon horizontally.
 /// Also, distance between hexagon centers horizontally.
-pub const HEX_WIDTH: f32 = 48.0;
+pub const HEX_WIDTH: f32 = 24.0;
 /// Distance from hex center to a corner
 pub const HEX_SIZE: f32 = HEX_WIDTH / SQRT_3;
 /// Height of a hex.
@@ -144,7 +144,7 @@ impl RawPattern {
 
 impl RawPattern {
     /// Trace the pattern and figure out what kind of data it is
-    pub fn to_data(self) -> SpellData {
+    pub fn into_data(self) -> SpellData {
         use Angle::*;
         match self.deltas.as_slice() {
             // Return a direction!
@@ -167,9 +167,9 @@ impl RawPattern {
                                 warn!("Had a Back in a direction");
                                 0.0
                             }
-                        } / 3.0;
+                        } / 4.0;
                         let narrowness = (1f32 / 6.0).powi(idx as i32 + 1);
-                        acc + amt * narrowness
+                        acc + amt * narrowness * TAU
                     });
                 SpellData::Direction(narrowed)
             }

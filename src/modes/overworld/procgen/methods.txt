@@ -1,0 +1,18 @@
+I want the levels to be very large, like the sand area in NaissanceE.
+Finding the exit should feel like trekking across the land.
+
+So, levels should be more like Caves of Qud or Solar Robot, and less like Nethack.
+
+https://www.youtube.com/watch?v=jV-DZqdKlnE
+To generate their villages, they use "Djikstra maps."
+
+https://www.youtube.com/watch?v=2SuvO4Gi7uY
+Wave Function looks very interesting, especially the version where you give it an example...
+i could imagine very interesting things happening if the player can help decide the
+example, by editing the world somehow...
+
+A hybrid approach might be interesting.
+Some sort of perlin function produces different patches in the world:
+this area has buildings, this area has ruins ...
+and places a WFC "seed" in the center. So the "buildings seed" or the "ruins seed".
+Then WFC iterates.

@@ -43,3 +43,20 @@ impl PhysicsWorld {
         }
     }
 }
+
+/// Groups for colliders.
+///
+/// Filters are "Default" filters; you're free to make your own.
+pub mod groups {
+    /// Walls, decals, and other immobile geometry.
+    pub const GROUP_WALLS: u32 = 0x00000001;
+    /// Players and enemies.
+    pub const GROUP_ANIMATE: u32 = 0x00000002;
+    /// Things that should damage but not bounce off of animate things.
+    pub const GROUP_PROJECTILES: u32 = 0x00000004;
+
+    /// Things that can interact with walls.
+    pub const FILTER_WALLS: u32 = GROUP_ANIMATE | GROUP_PROJECTILES;
+    pub const FILTER_ANIMATE: u32 = GROUP_WALLS | GROUP_ANIMATE;
+    pub const FILTER_PROJECTILES: u32 = GROUP_WALLS | GROUP_PROJECTILES;
+}
