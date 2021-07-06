@@ -10,4 +10,5 @@ pub mod particles;
 pub mod physics;
 pub mod player;
 pub mod projectiles;
+pub mod shrine;
 pub mod spells;

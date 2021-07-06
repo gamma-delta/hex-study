@@ -19,9 +19,25 @@ const STEP_TIME_BULLET: f32 = STEP_TIME_NORMAL * 0.2;
 #[derive(Debug)]
 pub struct HasCollider(pub ColliderHandle);
 
+impl std::ops::Deref for HasCollider {
+    type Target = ColliderHandle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// Component for entities with a rigid body.
 #[derive(Debug)]
 pub struct HasRigidBody(pub RigidBodyHandle);
+
+impl std::ops::Deref for HasRigidBody {
+    type Target = RigidBodyHandle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 pub fn system_run_physics(world: &mut World, physics: &mut PhysicsWorld) {
     let PhysicsWorld {

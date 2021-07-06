@@ -1,7 +1,5 @@
 use std::f32::consts::TAU;
 
-use crate::modes::overworld::spells::SpellPrototype;
-
 use super::{patterns::RawPattern, Function, RenderedSpell};
 
 use hecs::Entity;
@@ -23,14 +21,22 @@ pub enum SpellData {
     Direction(f32),
     /// A position in world space
     Position(Vec2),
-    /// Handle to an entity. NOTE: this should only be entities with the Animate component.
+    /// Handle to an entity.
     Entity(Entity),
     /// Consumes some things off the stack and pushes others
     Function(Function),
     /// A spell that has its data filled in
     RenderedSpell(RenderedSpell),
+    /// Null value, as a sentinel for complex spells or when something goes wrong.
+    Null(()),
     /// A pattern that couldn't be turned into data.
     Junk(RawPattern),
+}
+
+impl From<Function> for SpellData {
+    fn from(v: Function) -> Self {
+        Self::Function(v)
+    }
 }
 
 macro_rules! unwraps {
@@ -53,10 +59,5 @@ macro_rules! unwraps {
 }
 
 impl SpellData {
-    unwraps! {Direction, f32}
-    unwraps! {Position, Vec2}
-    unwraps! {Entity}
-    unwraps! {Function}
     unwraps! {RenderedSpell}
-    unwraps! {Junk, RawPattern}
 }

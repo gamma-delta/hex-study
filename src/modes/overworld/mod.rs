@@ -1,4 +1,5 @@
 mod cs;
+pub mod damage;
 mod physics;
 mod procgen;
 mod spells;
@@ -6,36 +7,32 @@ mod spells;
 use crate::{
     assets::Assets,
     boilerplates::{FrameInfo, Gamemode, Transition},
-    controls::InputSubscriber,
+    controls::{Control, InputSubscriber},
     modes::overworld::{
         cs::{
+            colored_box::{system_draw_colored_boxes, ColoredBox},
+            dazing::{system_dazed, Dazeable},
             debug::system_draw_collision,
+            explosions::system_cleanup_explosions,
+            limited_time_offer::system_cleanup_limited_timers,
+            particles::system_cleanup_particles,
             particles::system_draw_particles,
             physics::{system_run_physics, HasCollider, HasRigidBody},
             player::{player_body_collider, system_draw_spellcaster, system_player_inputs, Player},
             projectiles::system_draw_projectiles,
+            projectiles::system_projectiles,
         },
         physics::PhysicsWorld,
-        spells::{
-            casting::PatternDrawState,
-            patterns::{RawPattern, HEX_WIDTH},
-        },
     },
     HEIGHT, WIDTH,
 };
 
+use cogs_gamedev::controls::InputHandler;
 use hecs::{ComponentError, Entity, NoSuchEntity, World};
-use macroquad::prelude::RenderTarget;
-use nalgebra::{Matrix3, Similarity2, Vector2};
+use macroquad::prelude::{Color, GRAY, ORANGE, WHITE};
+use quad_rand::compat::QuadRand;
+use rand::Rng;
 use rapier2d::prelude::*;
-
-use self::cs::{
-    dazing::{system_dazed, Dazeable},
-    explosions::system_explosions,
-    limited_time_offer::system_limited_timers,
-    particles::system_cleanup_particles,
-    projectiles::system_projectiles,
-};
 
 /// Mode for the main playing state with the player running around dungeons.
 pub struct ModeOverworld {
@@ -50,46 +47,17 @@ impl ModeOverworld {
         let mut world = World::new();
         let mut physics = PhysicsWorld::new();
 
-        let map = r"
- # # # # #
-      
- #       #
-    ###
- #  # #  #
-
- # ##### #
-
- # # # # #
-";
-        for (y, line) in map.lines().enumerate() {
-            for (x, ch) in line.chars().enumerate() {
-                // Spawn walls
-                if ch == '#' {
-                    let x = x as f32 - 6.0;
-                    let y = y as f32 - 6.0;
-                    world.spawn_with_physics(
-                        &mut physics,
-                        (),
-                        // Cuboids are defined by *half*-extents, so we give it
-                        // half the w and h
-                        ColliderBuilder::cuboid(0.5, 0.5).build(),
-                        Some(
-                            RigidBodyBuilder::new_static()
-                                .translation(vector![x, y])
-                                .build(),
-                        ),
-                    );
-                }
-            }
-        }
-
         let (coll, rb) = player_body_collider();
         world.spawn_with_physics(
             &mut physics,
-            (Player::new(), Dazeable::new()),
+            (Player::new(), Dazeable::new(), ColoredBox(ORANGE)),
             coll,
             Some(rb),
         );
+
+        let seed: u64 = QuadRand.gen();
+        println!("seed: {}", seed);
+        procgen::generate_map(seed, 0, &mut world, &mut physics);
 
         ModeOverworld { world, physics }
     }
@@ -102,8 +70,6 @@ impl Gamemode for ModeOverworld {
         frame_info: FrameInfo,
         assets: &Assets,
     ) -> Transition {
-        system_explosions(&mut self.world, &mut self.physics);
-
         system_player_inputs(&mut self.world, &mut self.physics, controls);
         system_dazed(&mut self.world, &mut self.physics);
 
@@ -111,7 +77,8 @@ impl Gamemode for ModeOverworld {
 
         system_cleanup_particles(&mut self.world, &mut self.physics);
         system_projectiles(&mut self.world, &mut self.physics);
-        system_limited_timers(&mut self.world, &mut self.physics);
+        system_cleanup_limited_timers(&mut self.world, &mut self.physics);
+        system_cleanup_explosions(&mut self.world, &mut self.physics);
 
         Transition::None
     }
@@ -138,11 +105,14 @@ impl Gamemode for ModeOverworld {
             ..Default::default()
         });
 
+        system_draw_colored_boxes(&self.world, &self.physics);
         system_draw_projectiles(&self.world, &self.physics);
         system_draw_particles(&self.world, &self.physics);
 
         // just do some debug drawing for now
-        system_draw_collision(&self.world, &self.physics);
+        if controls.pressed(Control::Debug) {
+            system_draw_collision(&self.world, &self.physics);
+        }
 
         pop_camera_state();
         draw_texture(canvas.texture, 0.0, 0.0, WHITE);

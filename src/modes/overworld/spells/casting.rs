@@ -121,7 +121,13 @@ impl SpellCaster {
                         info!("{:#?}", &pattern);
                         self.add_pattern(pattern, world, physics)
                     } else {
-                        CastResult::NotDone
+                        // We didn't draw anything... let's see if we have something on the backburner
+                        if self.patterns.is_empty() {
+                            // Nope, we just accidentally clicked
+                            CastResult::Close
+                        } else {
+                            CastResult::NotDone
+                        }
                     }
                 }
             }
@@ -155,7 +161,7 @@ impl SpellCaster {
 
                 if let Some(res) = func.try_execute(data, &mut self.context, world, physics) {
                     // it went ok!
-                    self.stack.push(res);
+                    self.stack.extend_from_slice(&res);
                 } else {
                     // oh no, bad things happened
                     return CastResult::Mistake;
@@ -233,4 +239,6 @@ pub enum CastResult {
     Success(RenderedSpell),
     /// Something went wrong, oh no, make an explosion
     Mistake,
+    /// We ended the spell in some non-erroring way.
+    Close,
 }

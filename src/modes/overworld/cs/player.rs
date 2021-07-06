@@ -99,6 +99,7 @@ pub fn system_player_inputs(
                     physics,
                 );
             }
+            CastResult::Close => {}
         }
     } else if controls.clicked_down(Control::Click) {
         player.wip_spell = Some(SpellCaster::new(player_id, controls));

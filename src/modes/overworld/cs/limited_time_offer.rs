@@ -24,7 +24,7 @@ impl LimitedTimeOffer {
 }
 
 /// Tick down times and if there's no time left kill it
-pub fn system_limited_timers(world: &mut World, physics: &mut PhysicsWorld) {
+pub fn system_cleanup_limited_timers(world: &mut World, physics: &mut PhysicsWorld) {
     let mut remove = Vec::new();
 
     for (e, lto) in world.query_mut::<&mut LimitedTimeOffer>() {

@@ -143,10 +143,19 @@ impl RawPattern {
 }
 
 impl RawPattern {
-    /// Trace the pattern and figure out what kind of data it is
+    /// Trace the pattern and figure out what kind of data it is.
+    ///
+    /// In general, the "left-hand" or "clockwise" version of a spell is the normal one,
+    /// and the right-hand version is a variant.
+    ///
+    /// TODO this is a giant mess. some sort of data-driven approach would be best, but I'm not sure
+    /// how to do things like `Direction` matching without it being O(n). it might have to be O(n).
     pub fn into_data(self) -> SpellData {
         use Angle::*;
         match self.deltas.as_slice() {
+            // One single line is a null
+            [] => SpellData::Null(()),
+
             // Return a direction!
             [Forward, Forward, tail @ ..] => {
                 // `to_radians` considers 0 to be *up* so we rotate it to being horizontal.
@@ -177,13 +186,21 @@ impl RawPattern {
             // === Functions ===
 
             // Select caster with a diamond
-            [Left, LeftBack, Left] | [Right, RightBack, Right] => {
-                SpellData::Function(Function::GetCaster)
-            }
+            [Left, LeftBack, Left] | [Right, RightBack, Right] => Function::GetCaster.into(),
             // Small triangle to get the entity's pos
-            [LeftBack, LeftBack] | [RightBack, RightBack] => {
-                SpellData::Function(Function::GetPosition)
+            [LeftBack, LeftBack] | [RightBack, RightBack] => Function::GetPosition.into(),
+            // Question mark to check null
+            [Right, LeftBack] => Function::CheckNull.into(),
+            // Two arrows to find a direction
+            [RightBack, Forward, Forward, LeftBack] | [LeftBack, Forward, Forward, RightBack] => {
+                Function::GetDeltaDirection.into()
             }
+            // Find the shrine with a paper-boat shape
+            [Left, Forward, Left, LeftBack, Right, LeftBack, Right] => Function::FindShrine.into(),
+            // Two triangles holding hands to duplicate
+            [LeftBack, LeftBack, RightBack, LeftBack, LeftBack] => Function::Duplicate.into(),
+            // Two opposing triangles to swap
+            [LeftBack, LeftBack, Forward, RightBack, RightBack] => Function::Swap.into(),
 
             // === Spells ===
 
@@ -193,6 +210,10 @@ impl RawPattern {
             [Forward, Left, Forward, Left, Forward, Left, Forward, Left, Forward, Left, Forward] => {
                 SpellPrototype::Shield.into()
             }
+            // Lighting-bolt shape for light
+            [LeftBack, RightBack] => SpellPrototype::Light.into(),
+            // Arrow shape for wayfinder
+            [Forward, LeftBack | RightBack] => SpellPrototype::Wayfinder.into(),
 
             // Otherwise it's junk
             _ => SpellData::Junk(self),

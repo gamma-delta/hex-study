@@ -54,31 +54,27 @@ pub fn handler_explosion(
     world: &mut World,
     physics: &mut PhysicsWorld,
 ) {
-    // make a new scope for borrow checknt
-    {
-        let explosion = world.get::<Explosion>(explosion_handle).unwrap();
-        let explosion_coll_handle = world.get::<HasCollider>(explosion_handle).unwrap();
-        let explosion_coll = physics.colliders.get(explosion_coll_handle.0).unwrap();
+    let explosion = world.get::<Explosion>(explosion_handle).unwrap();
+    let explosion_coll_handle = world.get::<HasCollider>(explosion_handle).unwrap();
+    let explosion_coll = physics.colliders.get(explosion_coll_handle.0).unwrap();
 
-        let target_coll_handle = world.get::<HasCollider>(target).unwrap();
-        let target_coll = physics.colliders.get(target_coll_handle.0).unwrap();
-        let target_rb_handle = target_coll.parent().unwrap();
-        let target_rb = physics.rigid_bodies.get_mut(target_rb_handle).unwrap();
+    let target_coll_handle = world.get::<HasCollider>(target).unwrap();
+    let target_coll = physics.colliders.get(target_coll_handle.0).unwrap();
+    let target_rb_handle = target_coll.parent().unwrap();
+    let target_rb = physics.rigid_bodies.get_mut(target_rb_handle).unwrap();
 
-        let delta = target_coll.compute_aabb().center() - explosion_coll.compute_aabb().center();
-        let force = delta.normalize() * explosion.strength;
-        info!("Boom, applying {:?} to {:?}", &force, &target);
-        target_rb.apply_force(force, true);
+    let delta = target_coll.compute_aabb().center() - explosion_coll.compute_aabb().center();
+    let force = delta.normalize() * explosion.strength;
+    target_rb.apply_force(force, true);
 
-        if let Ok(mut damping) = world.get_mut::<Dazeable>(target) {
-            damping.add_time(target, (explosion.strength / 1000.0).atan(), world, physics);
-        }
+    if let Ok(mut damping) = world.get_mut::<Dazeable>(target) {
+        damping.add_time(target, (explosion.strength / 1000.0).atan(), world, physics);
     }
 }
 
 /// System that despawns explosions and adds a particle emitter.
 /// Run this before any explosions are created.
-pub fn system_explosions(world: &mut World, physics: &mut PhysicsWorld) {
+pub fn system_cleanup_explosions(world: &mut World, physics: &mut PhysicsWorld) {
     let config = EmitterConfig {
         // thanks for this comment fedor
         local_coords: true,
@@ -88,10 +84,10 @@ pub fn system_explosions(world: &mut World, physics: &mut PhysicsWorld) {
         explosiveness: 0.8,
         shape: ParticleShape::Circle { subdivisions: 20 },
         initial_direction_spread: TAU,
-        initial_velocity_randomness: 3.0,
+        initial_velocity_randomness: 1.0,
         linear_accel: -1.0,
         size: 3.0 / 16.0,
-        size_randomness: 2.0,
+        size_randomness: 1.0,
         gravity: vec2(0.0, 0.5),
         ..Default::default()
     };
@@ -113,7 +109,7 @@ pub fn system_explosions(world: &mut World, physics: &mut PhysicsWorld) {
                 radius: explosion.strength.sqrt() / 16.0,
             },
             amount: explosion.strength.sqrt() as u32,
-            initial_velocity: explosion.strength.sqrt(),
+            initial_velocity: explosion.strength.sqrt() / 4.0,
             colors_curve: ColorCurve {
                 start: color,
                 mid,

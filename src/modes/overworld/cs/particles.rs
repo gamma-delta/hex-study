@@ -21,6 +21,9 @@ pub struct ParticleEmitter {
     /// and it should be despawned after it is through with emitting.
     /// Otherwise, just remove the emitter.
     disposable: bool,
+    /// The contained value is timesteps counting up from the time the last particle is emitted.
+    /// Once this goes over the particle lifetime (plus a little) the emitter is finally removed.
+    death_watch: f32,
 }
 
 impl ParticleEmitter {
@@ -28,6 +31,7 @@ impl ParticleEmitter {
         Self {
             emitter: RwLock::new(Emitter::new(config)),
             disposable,
+            death_watch: 0.0,
         }
     }
 
@@ -52,10 +56,13 @@ pub fn system_draw_particles(world: &World, physics: &PhysicsWorld) {
 
 pub fn system_cleanup_particles(world: &mut World, physics: &mut PhysicsWorld) {
     let mut removes = Vec::new();
-    for (e, emitter) in world.query_mut::<&ParticleEmitter>().into_iter() {
-        let inner = emitter.emitter.read().unwrap();
+    for (e, emitter) in world.query_mut::<&mut ParticleEmitter>().into_iter() {
+        let inner = emitter.emitter.get_mut().unwrap();
         if !inner.config.emitting {
-            removes.push((e, emitter.disposable));
+            emitter.death_watch += physics.integration_params.dt;
+            if emitter.death_watch > inner.config.lifetime * 2.0 {
+                removes.push((e, emitter.disposable));
+            }
         }
     }
 

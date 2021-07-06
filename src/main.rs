@@ -1,5 +1,6 @@
 #![feature(try_blocks)]
 #![feature(trace_macros)]
+#![feature(total_cmp)]
 
 mod assets;
 mod boilerplates;
