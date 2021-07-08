@@ -1,7 +1,7 @@
-use enum_map::EnumMap;
+use enum_map::{Enum, EnumMap};
 
 /// Sources of damage
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Enum)]
 pub enum DamageSource {
     /// Normal damage from plain spells
     Projectile,

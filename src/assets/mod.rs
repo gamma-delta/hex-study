@@ -12,6 +12,7 @@ use std::path::PathBuf;
 pub struct Assets {
     pub textures: Textures,
     pub sounds: Sounds,
+    pub shaders: Shaders,
 }
 
 impl Assets {
@@ -19,6 +20,7 @@ impl Assets {
         Self {
             textures: Textures::init().await,
             sounds: Sounds::init().await,
+            shaders: Shaders::init().await,
         }
     }
 }
@@ -63,6 +65,32 @@ impl Sounds {
         Self {
             title_jingle: sound("title/jingle").await,
         }
+    }
+}
+
+pub struct Shaders {
+    pub lighting: Material,
+}
+
+impl Shaders {
+    async fn init() -> Self {
+        let lighting = material(
+            "lighting",
+            MaterialParams {
+                textures: vec!["lights".to_string()],
+                pipeline_params: PipelineParams {
+                    color_blend: Some(BlendState::new(
+                        Equation::Add,
+                        BlendFactor::Value(BlendValue::SourceAlpha),
+                        BlendFactor::OneMinusValue(BlendValue::SourceAlpha),
+                    )),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+        .await;
+        Self { lighting }
     }
 }
 

@@ -9,6 +9,8 @@ use data::{SpellData, SpellDataKind};
 
 use hecs::{Entity, World};
 use macroquad::prelude::Vec2;
+use nalgebra::vector;
+use rapier2d::prelude::*;
 use smallvec::{smallvec, SmallVec};
 use strum_macros::EnumDiscriminants;
 
@@ -39,6 +41,14 @@ pub enum Function {
     Duplicate,
     /// Swap the top two positions of the stack
     Swap,
+    /// Cast a ray until you hit a non-player collider, and return the hit position
+    RaycastForPos,
+    /// Cast a ray until you hit a non-player collider, and return the hit normal
+    RaycastForNormal,
+    /// Cast a ray until you hit a non-player collider, and return the hit entity
+    RaycastForEntity,
+    /// Throw away one argument
+    Discard,
     /// All the functions that are spells
     Spell(SpellPrototype),
 }
@@ -54,6 +64,8 @@ impl Function {
             Self::FindShrine => 0,
             Self::Duplicate => 1,
             Self::Swap => 2,
+            Self::RaycastForPos | Self::RaycastForNormal | Self::RaycastForEntity => 2,
+            Self::Discard => 1,
             Self::Spell(spell) => spell.argc(),
         }
     }
@@ -144,6 +156,60 @@ impl Function {
                 let [a, b] = arr::<2>(stack);
                 Some(smallvec![b, a])
             }
+            Function::RaycastForPos | Function::RaycastForNormal | Function::RaycastForEntity => {
+                if let [SpellData::Position(pos), SpellData::Direction(towards)] = arr::<2>(stack) {
+                    // Ok to unwrap this cause something's gone very very wrong if the caster
+                    // doesn't have a hitbox
+                    let query = world.query_one::<&HasCollider>(ctx.caster);
+                    let caster_coll_h = match query {
+                        // we can unwrap this because we have bigger problems if we somehow manage
+                        // to select an entity without a hitbox
+                        Ok(mut it) => it.get().unwrap().0,
+                        Err(_) => return None,
+                    };
+
+                    let (dy, dx) = towards.sin_cos();
+                    let towards = vector![dx, dy];
+
+                    let ray = Ray::new(pos.into(), towards);
+                    let raycasted = physics.query_pipeline.cast_ray_and_get_normal(
+                        &physics.colliders,
+                        &ray,
+                        Real::MAX,
+                        false,
+                        InteractionGroups::all(),
+                        Some(&|other| other != caster_coll_h),
+                    );
+                    let res = if let Some((coll_h, hit)) = raycasted {
+                        // What do we return here?
+                        match self {
+                            Function::RaycastForPos => {
+                                SpellData::Position(ray.point_at(hit.toi).into())
+                            }
+                            Function::RaycastForNormal => {
+                                SpellData::Direction(hit.normal.y.atan2(hit.normal.x))
+                            }
+                            Function::RaycastForEntity => {
+                                let coll = physics.colliders.get(coll_h).unwrap();
+                                SpellData::Entity(Entity::from_bits(coll.user_data as u64))
+                            }
+                            _ => unreachable!(),
+                        }
+                    } else {
+                        // we didn't hit anything
+                        SpellData::Null(())
+                    };
+
+                    Some(smallvec![res])
+                } else {
+                    None
+                }
+            }
+            Function::Discard => {
+                // just do nothing
+                Some(smallvec![])
+            }
+
             Function::Spell(proto) => {
                 // Pass this down to the spell prototype
                 SpellPrototype::try_render(proto, stack, ctx.clone())
@@ -167,12 +233,12 @@ pub struct RenderedSpell {
 pub enum RenderedSpellKind {
     /// A small projectile like Spark Bolt, shot from the caster in the specified direction.
     Starburst { direction: f32 },
-    /// Produces a shield around the given point.
-    Shield { pos: Vec2 },
     /// A little light of mine (I'm gonna let it shine)
     Light { pos: Vec2 },
     /// Short particle effect that points in a direction
     Wayfinder { pos: Vec2, towards: f32 },
+    /// Short particle effect that just goes poof
+    Pointfinder { pos: Vec2 },
 }
 
 macro_rules! unwrap_arms {
@@ -220,10 +286,6 @@ impl RenderedSpellKind {
                 direction: SpellData::Direction,
             ),
             (
-                Shield => 1;
-                pos: SpellData::Position,
-            ),
-            (
                 Light => 1;
                 pos: SpellData::Position,
             ),
@@ -231,6 +293,10 @@ impl RenderedSpellKind {
                 Wayfinder => 2;
                 pos: SpellData::Position,
                 towards: SpellData::Direction,
+            ),
+            (
+                Pointfinder => 1;
+                pos: SpellData::Position,
             )
         }
     }
@@ -241,9 +307,9 @@ impl SpellPrototype {
     pub fn argc(&self) -> usize {
         match self {
             SpellPrototype::Starburst => 1,
-            SpellPrototype::Shield => 1,
             SpellPrototype::Light => 1,
             SpellPrototype::Wayfinder => 2,
+            SpellPrototype::Pointfinder => 1,
         }
     }
 

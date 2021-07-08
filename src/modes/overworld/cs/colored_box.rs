@@ -26,12 +26,15 @@ pub fn system_draw_colored_boxes(world: &World, physics: &PhysicsWorld) {
         draw(coll, color.0);
     }
 
-    let player_h = world.get_player();
-    // so ergonomic
-    let mut query = world
-        .query_one::<(&ColoredBox, &HasCollider)>(player_h)
-        .unwrap();
-    let (color, coll_h) = query.get().unwrap();
-    let coll = physics.colliders.get(**coll_h).unwrap();
-    draw(coll, color.0);
+    // we have to draw the player on top
+
+    if let Some(player_h) = world.get_player() {
+        // so ergonomic
+        let mut query = world
+            .query_one::<(&ColoredBox, &HasCollider)>(player_h)
+            .unwrap();
+        let (color, coll_h) = query.get().unwrap();
+        let coll = physics.colliders.get(**coll_h).unwrap();
+        draw(coll, color.0);
+    }
 }

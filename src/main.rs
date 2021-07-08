@@ -60,6 +60,9 @@ async fn main() {
         frames_ran: 0,
     };
 
+    let time = macroquad::miniquad::date::now();
+    macroquad::rand::srand(time.to_bits());
+
     loop {
         // Update the current state.
         // To change state, return a non-None transition.
@@ -112,10 +115,6 @@ async fn main() {
         );
 
         frame_info.frames_ran += 1;
-        // Make particles unbad, thanks Vaalha?
-        unsafe {
-            miniquad::gl::glFinish();
-        }
         next_frame().await
     }
 }

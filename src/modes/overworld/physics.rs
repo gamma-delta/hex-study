@@ -23,6 +23,8 @@ pub struct PhysicsWorld {
 
     pub physics_pipeline: PhysicsPipeline,
     pub query_pipeline: QueryPipeline,
+
+    pub elapsed_time: f32,
 }
 
 impl PhysicsWorld {
@@ -40,6 +42,8 @@ impl PhysicsWorld {
 
             physics_pipeline: PhysicsPipeline::new(),
             query_pipeline: QueryPipeline::new(),
+
+            elapsed_time: 0.0,
         }
     }
 }
@@ -55,8 +59,11 @@ pub mod collider_groups {
     pub const GROUP_ANIMATE: u32 = 0x00000002;
     /// Things that should damage but not bounce off of animate things.
     pub const GROUP_PROJECTILES: u32 = 0x00000004;
+    /// The "group" for lighting calculations.
+    pub const GROUP_LIGHTING: u32 = 0x00000008;
 
-    pub const FILTER_WALLS: u32 = GROUP_ANIMATE | GROUP_PROJECTILES;
+    pub const FILTER_WALLS: u32 = GROUP_ANIMATE | GROUP_PROJECTILES | GROUP_LIGHTING;
     pub const FILTER_ANIMATE: u32 = GROUP_WALLS | GROUP_ANIMATE;
     pub const FILTER_PROJECTILES: u32 = GROUP_WALLS | GROUP_PROJECTILES;
+    pub const FILTER_LIGHTING: u32 = GROUP_WALLS;
 }

@@ -145,7 +145,7 @@ impl RawPattern {
 impl RawPattern {
     /// Trace the pattern and figure out what kind of data it is.
     ///
-    /// In general, the "left-hand" or "clockwise" version of a spell is the normal one,
+    /// In general, the "left-hand" or "counterclockwise" version of a spell is the normal one,
     /// and the right-hand version is a variant.
     ///
     /// TODO this is a giant mess. some sort of data-driven approach would be best, but I'm not sure
@@ -201,19 +201,31 @@ impl RawPattern {
             [LeftBack, LeftBack, RightBack, LeftBack, LeftBack] => Function::Duplicate.into(),
             // Two opposing triangles to swap
             [LeftBack, LeftBack, Forward, RightBack, RightBack] => Function::Swap.into(),
+            // Short V to discard
+            // this isn't very thematic but I figure it should be short
+            [LeftBack | RightBack] => Function::Discard.into(),
+
+            // Left-hand battleaxe for raycast pos
+            [Forward, Left, LeftBack, LeftBack, Forward, RightBack, RightBack] => {
+                Function::RaycastForPos.into()
+            }
+            // Right-hand battleaxe for raycast normal
+            [Forward, LeftBack, RightBack, RightBack, Forward, LeftBack, LeftBack] => {
+                Function::RaycastForNormal.into()
+            }
+            // Line into a (left-hand) diamond for raycast position
+            [Forward, Right, LeftBack, Left, LeftBack] => Function::RaycastForEntity.into(),
 
             // === Spells ===
 
             // Starburst!
             [Forward, LeftBack, LeftBack, Forward] => SpellPrototype::Starburst.into(),
-            // Big hex for shield
-            [Forward, Left, Forward, Left, Forward, Left, Forward, Left, Forward, Left, Forward] => {
-                SpellPrototype::Shield.into()
-            }
             // Lighting-bolt shape for light
             [LeftBack, RightBack] => SpellPrototype::Light.into(),
-            // Arrow shape for wayfinder
-            [Forward, LeftBack | RightBack] => SpellPrototype::Wayfinder.into(),
+            // Left arrow for wayfinder
+            [Forward, LeftBack] => SpellPrototype::Wayfinder.into(),
+            // Right arrow for wayfinder
+            [Forward, RightBack] => SpellPrototype::Pointfinder.into(),
 
             // Otherwise it's junk
             _ => SpellData::Junk(self),

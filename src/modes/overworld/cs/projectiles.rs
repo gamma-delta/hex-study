@@ -40,7 +40,7 @@ impl Projectile {
 
 /// Delete projectiles going too slow, and if they have particles
 /// update them to shoot alongside the projectile.
-pub fn system_projectiles(world: &mut World, physics: &mut PhysicsWorld) {
+pub fn system_update_and_cleanup_projectiles(world: &mut World, physics: &mut PhysicsWorld) {
     let mut remove = Vec::new();
     for (e, (proj, rb_h, particles)) in world
         .query_mut::<(&Projectile, &HasRigidBody, Option<&mut ParticleEmitter>)>()

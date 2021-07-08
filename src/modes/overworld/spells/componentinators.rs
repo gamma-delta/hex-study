@@ -1,14 +1,19 @@
 //! Turn `RenderedSpell`s into entities.
 
+use std::f32::consts::TAU;
+
 use hecs::World;
-use macroquad::prelude::{vec2, PURPLE};
-use macroquad_particles::{ColorCurve, Curve, EmitterConfig, ParticleShape};
+use macroquad::prelude::{vec2, vec3, PURPLE};
+use macroquad_particles::{ColorCurve, Curve, EmissionShape, EmitterConfig, ParticleShape};
 use rapier2d::prelude::*;
 
 use crate::{
     modes::overworld::{
         cs::{
-            limited_time_offer::LimitedTimeOffer, particles::ParticleEmitter, physics::HasCollider,
+            light::{Illuminator, LightFalloffKind},
+            limited_time_offer::LimitedTimeOffer,
+            particles::ParticleEmitter,
+            physics::HasCollider,
             projectiles::Projectile,
         },
         physics::PhysicsWorld,
@@ -73,7 +78,6 @@ impl RenderedSpell {
                     world.spawn_with_physics(physics, (particles, proj, timer), coll, Some(rb));
                 }
             }
-            RenderedSpellKind::Shield { pos } => {}
             RenderedSpellKind::Light { pos } => {
                 let config = EmitterConfig {
                     amount: 20,
@@ -103,11 +107,14 @@ impl RenderedSpell {
                 };
                 let particles = ParticleEmitter::new(config, false);
 
+                let light =
+                    Illuminator::new(vec3(1.0, 0.8, 0.7), LightFalloffKind::Circular { m: 0.05 });
+
                 let collider = ColliderBuilder::ball(0.1)
                     .translation(pos.into())
                     .collision_groups(InteractionGroups::none())
                     .build();
-                world.spawn_with_physics(physics, (particles,), collider, None);
+                world.spawn_with_physics(physics, (particles, light), collider, None);
             }
             RenderedSpellKind::Wayfinder { pos, towards } => {
                 let (dy, dx) = towards.sin_cos();
@@ -143,6 +150,39 @@ impl RenderedSpell {
 
                 let collider = ColliderBuilder::ball(0.1)
                     .translation((pos + towards / 4.0).into())
+                    .collision_groups(InteractionGroups::none())
+                    .build();
+                world.spawn_with_physics(physics, (particles,), collider, None);
+            }
+            RenderedSpellKind::Pointfinder { pos } => {
+                let config = EmitterConfig {
+                    amount: 30,
+                    initial_direction: vec2(0.0, 0.0),
+                    initial_velocity: 0.0,
+                    lifetime: 1.2,
+                    lifetime_randomness: 0.5,
+                    size: 0.2,
+                    size_randomness: 1.0,
+                    emission_shape: EmissionShape::Sphere { radius: 0.5 },
+                    shape: ParticleShape::Circle { subdivisions: 8 },
+                    explosiveness: 0.9,
+                    one_shot: true,
+                    local_coords: true,
+                    colors_curve: ColorCurve {
+                        start: hexcolor(0xd738ff_22),
+                        mid: hexcolor(0x8682ff_dd),
+                        end: hexcolor(0x38ebff_22),
+                    },
+                    size_curve: Some(Curve {
+                        points: vec![(0.2, 1.0), (0.7, 2.0), (1.0, 0.0)],
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                };
+                let particles = ParticleEmitter::new(config, true);
+
+                let collider = ColliderBuilder::ball(0.1)
+                    .translation(pos.into())
                     .collision_groups(InteractionGroups::none())
                     .build();
                 world.spawn_with_physics(physics, (particles,), collider, None);

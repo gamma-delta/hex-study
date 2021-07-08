@@ -7,7 +7,7 @@ use cogs_gamedev::grids::{Direction4, ICoord};
 use hecs::World;
 use macroquad::prelude::{Color, BLUE};
 use nalgebra::vector;
-use noise::{Billow, Blend, NoiseFn, Seedable, SuperSimplex};
+use noise::{Billow, Blend, NoiseFn, ScaleBias, Seedable, SuperSimplex};
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256StarStar;
 use rapier2d::{
@@ -27,6 +27,8 @@ use super::{cs::player::Player, physics::PhysicsWorld, WorldExt};
 
 /// Tile size in the world.
 pub const WORLD_SIZE: isize = 128;
+/// How many physics units one tile corresponds to.
+pub const TILE_SCALE: f32 = 2.0;
 
 /// Abstraction layer over components: tiles representing structures.
 /// These are 1x1 meters, or 16x16 pixels.
@@ -89,9 +91,21 @@ pub fn generate_map(seed: u64, depth: u64, world: &mut World, physics: &mut Phys
         (!seed).to_be_bytes(),
     ];
     let rng_seed = seed_split.concat();
-    let rng = Xoshiro256StarStar::from_seed(rng_seed.try_into().unwrap());
+    let mut rng = Xoshiro256StarStar::from_seed(rng_seed.try_into().unwrap());
+
+    let start_pos = ICoord::new(
+        rng.gen_range(0..WORLD_SIZE / 10),
+        rng.gen_range(0..WORLD_SIZE),
+    );
+    let end_pos = ICoord::new(
+        rng.gen_range(WORLD_SIZE * 9 / 10..WORLD_SIZE),
+        rng.gen_range(0..WORLD_SIZE),
+    );
+
     let mut state = TileMap {
         tiles: AHashMap::new(),
+        start_pos,
+        end_pos,
         rng,
     };
 
@@ -110,32 +124,22 @@ pub fn generate_map(seed: u64, depth: u64, world: &mut World, physics: &mut Phys
 
     state.generate();
 
-    // for y in 0..WORLD_SIZE {
-    //     let line = (0..WORLD_SIZE)
-    //         .map(|x| {
-    //             let pos = ICoord::new(x, y);
-    //             let tile = state.tiles.get(&pos).unwrap();
-    //             if tile.is_solid() {
-    //                 '#'
-    //             } else {
-    //                 ' '
-    //             }
-    //         })
-    //         .collect::<String>();
-    //     println!("{}", &line);
-    // }
+    for y in 0..WORLD_SIZE {
+        let line = (0..WORLD_SIZE)
+            .map(|x| {
+                let pos = ICoord::new(x, y);
+                let tile = state.tiles.get(&pos).unwrap();
+                if tile.is_solid() {
+                    '#'
+                } else {
+                    ' '
+                }
+            })
+            .collect::<String>();
+        println!("{}", &line);
+    }
 
-    let map = state.tiles;
-    let mut rng = state.rng;
-
-    let mut open_spots = Vec::new();
-    for (pos, tile) in map {
-        // Their coordinate positions become their translations.
-        // (that sounds poetic)
-        if !tile.is_solid() {
-            open_spots.push(pos);
-        }
-
+    for (pos, tile) in state.tiles {
         let color = tile.color();
         let filter = if tile.is_solid() {
             collider_groups::FILTER_WALLS
@@ -143,30 +147,28 @@ pub fn generate_map(seed: u64, depth: u64, world: &mut World, physics: &mut Phys
             0x0
         };
 
-        let coll = ColliderBuilder::cuboid(0.5, 0.5)
+        let coll = ColliderBuilder::cuboid(TILE_SCALE / 2.0, TILE_SCALE / 2.0)
             .collision_groups(InteractionGroups::new(collider_groups::GROUP_WALLS, filter))
             .build();
         let rb = RigidBodyBuilder::new_static()
-            .translation(vector![pos.x as f32, pos.y as f32])
+            .translation(vector![pos.x as f32, pos.y as f32] * TILE_SCALE)
             .build();
         world.spawn_with_physics(physics, (ColoredBox(color),), coll, Some(rb));
     }
 
-    let player_spot = rng.gen_range(0..open_spots.len());
-    let shrine_spot = rng.gen_range(0..open_spots.len());
-    let player_spot = open_spots[player_spot];
-    let shrine_spot = open_spots[shrine_spot];
-
     // Move player
     {
-        let player_h = world.get_player();
+        let player_h = world.get_player().unwrap();
         let rb_h = world.get::<HasRigidBody>(player_h).unwrap();
         let rb = physics.rigid_bodies.get_mut(**rb_h).unwrap();
         // It's ok to teleport the player to somewhere empty
-        rb.set_translation(vector![player_spot.x as f32, player_spot.y as f32], false);
+        rb.set_translation(
+            vector![state.start_pos.x as f32, state.start_pos.y as f32],
+            false,
+        );
     }
     let coll = ColliderBuilder::cuboid(0.4, 0.4)
-        .translation(vector![shrine_spot.x as f32, shrine_spot.y as f32])
+        .translation(vector![state.end_pos.x as f32, state.end_pos.y as f32])
         .collision_groups(InteractionGroups::none())
         .build();
     world.spawn_with_physics(physics, (Shrine::new(1), ColoredBox(BLUE)), coll, None);
@@ -180,6 +182,8 @@ pub fn generate_map(seed: u64, depth: u64, world: &mut World, physics: &mut Phys
 /// - Iterate buildings
 struct TileMap<R: Rng> {
     tiles: AHashMap<ICoord, Tile>,
+    start_pos: ICoord,
+    end_pos: ICoord,
     rng: R,
 }
 
@@ -208,23 +212,26 @@ impl<R: Rng> TileMap<R> {
         let mut billow = Billow::new().set_seed(self.rng.gen());
         billow.frequency = 5.0;
         billow.octaves = 2;
+        let billow_reduced = ScaleBias {
+            source: &billow,
+            scale: 0.8,
+            bias: 0.0,
+        };
         let simplex = SuperSimplex::new().set_seed(self.rng.gen());
-        let noiser = Blend::<'_, [f64; 2]>::new(&billow, &simplex, &simplex);
+        let noiser = Blend::<'_, [f64; 2]>::new(&billow_reduced, &simplex, &simplex);
 
         // Positive values are stone; negative are ground
         let mut hardnesses = AHashMap::new();
 
         {
-            let x = self.rng.gen_range(0..WORLD_SIZE);
-            let y = self.rng.gen_range(0..WORLD_SIZE);
-            let origin = ICoord::new(x, y);
-
             // If a pos in this set it ought to be empty
             let mut empties = AHashSet::new();
-            empties.insert(origin);
-            let mut exposed = Direction4::DIRECTIONS
+            empties.insert(self.start_pos);
+            empties.insert(self.end_pos);
+
+            let mut exposed = empties
                 .iter()
-                .map(|dir| origin + *dir)
+                .flat_map(|&pos| Direction4::DIRECTIONS.iter().map(move |dir| pos + *dir))
                 .collect::<Vec<_>>();
 
             let distr = rand_distr::Exp::new(0.5f32).unwrap();
@@ -273,7 +280,7 @@ impl<R: Rng> TileMap<R> {
 
         // Finally ...
         for (pos, hardness) in hardnesses {
-            let tile = if hardness > 0.2 {
+            let tile = if hardness > 0.3 {
                 Tile::Rock
             } else {
                 Tile::Ground

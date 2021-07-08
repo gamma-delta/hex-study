@@ -53,17 +53,20 @@ pub fn system_run_physics(world: &mut World, physics: &mut PhysicsWorld) {
 
         physics_pipeline,
         query_pipeline,
+
+        elapsed_time,
     } = physics;
 
-    let player_id = world.get_player();
-    let player = world.get::<Player>(player_id).unwrap();
-
-    let dt = if player.wip_spell.is_some() {
-        STEP_TIME_BULLET
+    integration_params.dt = if let Some(player_id) = world.get_player() {
+        let player = world.get::<Player>(player_id).unwrap();
+        if player.wip_spell.is_some() {
+            STEP_TIME_BULLET
+        } else {
+            STEP_TIME_NORMAL
+        }
     } else {
         STEP_TIME_NORMAL
     };
-    integration_params.dt = dt;
 
     // use channels to get events... why
     let (intersect_tx, intersect_rx) = crossbeam::channel::unbounded();
@@ -84,9 +87,7 @@ pub fn system_run_physics(world: &mut World, physics: &mut PhysicsWorld) {
         &cec,
     );
     query_pipeline.update(&island_manager, &rigid_bodies, &colliders);
-
-    // borrow errorn't
-    drop(player);
+    *elapsed_time += integration_params.dt;
 
     // Now do events!
     while let Ok(ev) = intersect_rx.try_recv() {
